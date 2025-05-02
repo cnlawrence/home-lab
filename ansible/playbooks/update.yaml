@@ -1,0 +1,48 @@
+---
+- name: Update and patch all hosts
+  hosts: all
+  become: true # Run tasks with elevated privileges
+  tasks:
+    # Update (Debian/Ubuntu/Proxmox) cache
+    # - name: Update apt cache (Debian/Ubuntu/Proxmox)
+    #   ansible.builtin.apt:
+    #     update_cache: true
+    #   when: >
+    #     ansible_os_family == "Debian"
+
+    # Update Debian/Ubuntu clients (excluding Proxmox hosts)
+    - name: Upgrade all packages (Debian/Ubuntu, excluding Proxmox)
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: true
+      when: >
+        ansible_os_family == "Debian" and
+        inventory_hostname not in groups["proxmox"]
+
+    # Update Proxmox hosts
+    - name: Perform full-upgrade on Proxmox hosts
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: full
+      when: >
+        inventory_hostname in groups["proxmox"]
+
+    # Update Alpine Linux client
+    - name: Update and upgrade Alpine Linux
+      community.general.apk:
+        update_cache: true
+        upgrade: true
+      when: ansible_os_family == "Alpine"
+
+    # # Restart services if needed (Debian/Ubuntu, excluding Proxmox)
+    # - name: Restart services if needed
+    #   ansible.builtin.service:
+    #     name: "{{ item }}"
+    #     state: restarted
+    #   loop:
+    #     - sshd
+    #     - nginx
+    #     - mysql
+    #   when: >
+    #     ansible_os_family == "Debian" and
+    #     inventory_hostname not in groups["proxmox"]

@@ -396,3 +396,9 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Ansible temporary files and cache
+.ansible/
+
+# direnv environment files
+.direnv/

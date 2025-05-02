@@ -1,0 +1,32 @@
+debian_ubuntu:
+  hosts:
+    docker-pi-01:
+      ansible_host: docker-pi-01.local
+    debian-casaos-01:
+      ansible_host: debian-casaos-01.local
+    lxc-navidrome-01:
+      ansible_host: lxc-navidrome-01.local
+      ansible_user: root
+    lxc-docker-01:
+      ansible_host: lxc-docker-01.local
+      ansible_user: root
+    # retropie:
+    #   ansible_host: retropie.local
+    #   ansible_user: pi
+    #   become_user: pi
+  vars:
+    ansible_user: clawrence
+proxmox:
+  hosts:
+    moonbaseone:
+      ansible_host: moonbaseone.local
+    moonbasetwo:
+      ansible_host: moonbasetwo.local
+  vars:
+    ansible_user: root
+alpine:
+  hosts:
+    lxc-samba-01:
+      ansible_host: lxc-samba-01.local
+  vars:
+    ansible_user: root
