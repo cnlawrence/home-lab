@@ -1,0 +1,15 @@
+[branch]
+	autosetuprebase = "always"
+
+[branch "master"]
+	rebase = true
+
+[gpg]
+	format = "openpgp"
+
+[gpg "openpgp"]
+	program = "/nix/store/m7b03yjgsang1kws4lwhzk0dr0dkrjwf-gnupg-2.4.8/bin/gpg"
+
+[user]
+	email = "1872389+cnlawrence@users.noreply.github.com"
+	name = "cnlawrence"
