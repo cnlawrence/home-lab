@@ -61,15 +61,34 @@
         name: gnome-shell-extension-prefs
         state: present
       when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
+
+    - name: Create temporary directory for extension downloads
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: gnome_extensions
+      register: temp_dir
+      when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
+
+    - name: Download GNOME Shell extensions
+      ansible.builtin.get_url:
+        url: "https://extensions.gnome.org/extension-data/{{ item }}.v{{ lookup('url', 'https://extensions.gnome.org/extension-info/?pk={{ item }}', split_lines=false) | from_json | dig('shell_version_map', ansible_facts.ansible_distribution_version | replace('.', '_'), 'version') }}.shell-extension.zip"
+        dest: "{{ temp_dir.path }}/{{ item }}.zip"
+        mode: "0644"
+      loop: "{{ installer.ubuntu.gnome_extensions }}"
+      when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
+      register: download_result
+      ignore_errors: true  # Handle download errors gracefully
+
     - name: Install GNOME Shell extensions
       ansible.builtin.command:
-        cmd: "gnome-extensions install {{ item }} --force"
-        creates: "~/local/share/gnome-shell/extensions/{{ item }}"
+        cmd: "gnome-extensions install {{ temp_dir.path }}/{{ item }}.zip --force"
+        creates: "~/.local/share/gnome-shell/extensions/{{ item }}"
       loop: "{{ installer.ubuntu.gnome_extensions }}"
       when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
       register: install_result
       changed_when: install_result.rc == 0
       ignore_errors: true
+
     - name: Enable GNOME Shell extensions
       ansible.builtin.command:
         cmd: "gnome-extensions enable {{ item }}"
@@ -77,6 +96,13 @@
       when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
       register: enable_result
       changed_when: enable_result.rc == 0
+
+    - name: Clean up downloaded extension files
+      ansible.builtin.file:
+        path: "{{ temp_dir.path }}"
+        state: absent
+      when: temp_dir.path is defined
+
     - name: Restart GNOME Shell
       ansible.builtin.command:
         cmd: 'busctl call org.gnome.Shell /org/gnome/Shell org.gnome.Shell Eval string ''Meta.restart("Restarting…")'''
