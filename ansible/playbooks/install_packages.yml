@@ -1,7 +1,9 @@
 ---
 - name: Install packages on Ubuntu
   hosts: localhost # Or replace with remote hosts if managing multiple machines
-  become: yes # Enables sudo
+  become: true # Enables sudo
+  vars:
+    ansible_user: clawrence
   vars_files:
     - ../configs/ubuntu-packages.yml # Loads your config
   tasks:
@@ -9,47 +11,50 @@
       ansible.builtin.apt:
         name: "{{ installer.ubuntu.apt }}"
         state: present
-        update_cache: yes
+        update_cache: true
       when: installer.ubuntu.apt is defined and installer.ubuntu.apt | length > 0
 
     - name: Install snap packages (strict confinement)
-      ansible.builtin.snap:
+      community.general.snap:
         name: "{{ installer.ubuntu.snap }}"
         state: present
       when: installer.ubuntu.snap is defined and installer.ubuntu.snap | length > 0
-      ignore_errors: yes
+      failed_when: false
     - name: Install snap packages (classic confinement)
-      ansible.builtin.snap:
+      community.general.snap:
         name: "{{ installer.ubuntu.snap_classic }}"
         state: present
-        classic: yes
+        classic: true
       when: installer.ubuntu.snap_classic is defined and installer.ubuntu.snap_classic | length > 0
-      ignore_errors: yes
+      failed_when: false
 
     - name: Install starship via curl
       ansible.builtin.shell: |
         curl -fsSL https://starship.rs/install.sh | bash -s -- -y
       args:
         creates: /usr/local/bin/starship
-      when: "'starship' in installer.ubuntu.apt"
 
+    - name: Check if Warp Terminal is installed
+      ansible.builtin.stat:
+        path: /usr/bin/warp-terminal
+      register: warp_installed
+      failed_when: false # Ensure task doesn't fail on error
     - name: Download Warp Terminal .deb package
       ansible.builtin.get_url:
-        url: https://releases.warp.dev/linux/warp-latest.deb
+        url: https://app.warp.dev/download?package=deb
         dest: /tmp/warp-latest.deb
         mode: "0644"
-      args:
-        creates: /usr/bin/warp
+        force: false # Only download if not already present
+      when: warp_installed is defined and not warp_installed.stat.exists
     - name: Install Warp Terminal
       ansible.builtin.apt:
         deb: /tmp/warp-latest.deb
-      args:
-        creates: /usr/bin/warp
+      when: warp_installed is defined and not warp_installed.stat.exists
     - name: Clean up Warp Terminal .deb
       ansible.builtin.file:
         path: /tmp/warp-latest.deb
         state: absent
-      when: installer.ubuntu.apt is defined and 'warp' in installer.ubuntu.apt
+      when: warp_installed is defined and not warp_installed.stat.exists
 
     - name: Install gnome-shell-extension-prefs
       ansible.builtin.apt:
@@ -59,12 +64,12 @@
     - name: Install GNOME Shell extensions
       ansible.builtin.command:
         cmd: "gnome-extensions install {{ item }} --force"
-        creates: "/home/{{ ansible_user }}/local/share/gnome-shell/extensions/{{ item }}"
+        creates: "~/local/share/gnome-shell/extensions/{{ item }}"
       loop: "{{ installer.ubuntu.gnome_extensions }}"
       when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
       register: install_result
       changed_when: install_result.rc == 0
-      ignore_errors: yes
+      ignore_errors: true
     - name: Enable GNOME Shell extensions
       ansible.builtin.command:
         cmd: "gnome-extensions enable {{ item }}"
@@ -75,5 +80,6 @@
     - name: Restart GNOME Shell
       ansible.builtin.command:
         cmd: 'busctl call org.gnome.Shell /org/gnome/Shell org.gnome.Shell Eval string ''Meta.restart("Restarting…")'''
-      become: no
+      become: false
       when: install_result.changed or enable_result.changed
+      changed_when: false
