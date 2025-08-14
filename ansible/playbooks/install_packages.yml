@@ -1,0 +1,79 @@
+---
+- name: Install packages on Ubuntu
+  hosts: localhost # Or replace with remote hosts if managing multiple machines
+  become: yes # Enables sudo
+  vars_files:
+    - ../configs/ubuntu-packages.yml # Loads your config
+  tasks:
+    - name: Install apt packages
+      ansible.builtin.apt:
+        name: "{{ installer.ubuntu.apt }}"
+        state: present
+        update_cache: yes
+      when: installer.ubuntu.apt is defined and installer.ubuntu.apt | length > 0
+
+    - name: Install snap packages (strict confinement)
+      ansible.builtin.snap:
+        name: "{{ installer.ubuntu.snap }}"
+        state: present
+      when: installer.ubuntu.snap is defined and installer.ubuntu.snap | length > 0
+      ignore_errors: yes
+    - name: Install snap packages (classic confinement)
+      ansible.builtin.snap:
+        name: "{{ installer.ubuntu.snap_classic }}"
+        state: present
+        classic: yes
+      when: installer.ubuntu.snap_classic is defined and installer.ubuntu.snap_classic | length > 0
+      ignore_errors: yes
+
+    - name: Install starship via curl
+      ansible.builtin.shell: |
+        curl -fsSL https://starship.rs/install.sh | bash -s -- -y
+      args:
+        creates: /usr/local/bin/starship
+      when: "'starship' in installer.ubuntu.apt"
+
+    - name: Download Warp Terminal .deb package
+      ansible.builtin.get_url:
+        url: https://releases.warp.dev/linux/warp-latest.deb
+        dest: /tmp/warp-latest.deb
+        mode: "0644"
+      args:
+        creates: /usr/bin/warp
+    - name: Install Warp Terminal
+      ansible.builtin.apt:
+        deb: /tmp/warp-latest.deb
+      args:
+        creates: /usr/bin/warp
+    - name: Clean up Warp Terminal .deb
+      ansible.builtin.file:
+        path: /tmp/warp-latest.deb
+        state: absent
+      when: installer.ubuntu.apt is defined and 'warp' in installer.ubuntu.apt
+
+    - name: Install gnome-shell-extension-prefs
+      ansible.builtin.apt:
+        name: gnome-shell-extension-prefs
+        state: present
+      when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
+    - name: Install GNOME Shell extensions
+      ansible.builtin.command:
+        cmd: "gnome-extensions install {{ item }} --force"
+        creates: "/home/{{ ansible_user }}/local/share/gnome-shell/extensions/{{ item }}"
+      loop: "{{ installer.ubuntu.gnome_extensions }}"
+      when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
+      register: install_result
+      changed_when: install_result.rc == 0
+      ignore_errors: yes
+    - name: Enable GNOME Shell extensions
+      ansible.builtin.command:
+        cmd: "gnome-extensions enable {{ item }}"
+      loop: "{{ installer.ubuntu.gnome_extensions }}"
+      when: installer.ubuntu.gnome_extensions is defined and installer.ubuntu.gnome_extensions | length > 0
+      register: enable_result
+      changed_when: enable_result.rc == 0
+    - name: Restart GNOME Shell
+      ansible.builtin.command:
+        cmd: 'busctl call org.gnome.Shell /org/gnome/Shell org.gnome.Shell Eval string ''Meta.restart("Restarting…")'''
+      become: no
+      when: install_result.changed or enable_result.changed

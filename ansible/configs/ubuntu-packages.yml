@@ -1,0 +1,27 @@
+installer:
+  ubuntu:
+    apt:
+      - git
+      - stow
+      - wget
+      - direnv
+      - ansible
+      - ansible-lint
+      - python3
+      - python3-pip
+      - openssh-client
+      - dconf-editor
+      - gnome-tweaks
+      - gir1.2-gtop-2.0 # Dependency for vitals
+      - lm-sensors # Dependency for vitals
+    snap:
+      - brave
+      - qbittorrent-arnatious
+      - nicotine-plus
+    snap_classic:
+      - code
+      - ghostty
+    gnome_extensions:
+      - blur-my-shell@aunetx
+      - vitals@corecoding.com
+      - workspaces-by-open-apps@favo02
