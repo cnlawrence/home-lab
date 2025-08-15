@@ -4,6 +4,9 @@ installer:
       - git
       - stow
       - wget
+      - curl
+      - dnsutils
+      - sshpass
       - direnv
       - ansible
       - ansible-lint
@@ -21,7 +24,12 @@ installer:
     snap_classic:
       - code
       - ghostty
+    fonts:
+      - FiraCode
     gnome_extensions:
       - blur-my-shell@aunetx
       - vitals@corecoding.com
       - workspaces-by-open-apps@favo02
+    custom:
+      - starship
+      - warp-terminal
